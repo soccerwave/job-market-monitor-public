@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "job-market-monitor-private-gateway",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-07",
+  "workers_dev": true,
+  "secrets": [
+    "INGEST_TOKEN",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID"
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PRIVATE_BUCKET",
+      "bucket_name": "job-market-monitor-private"
+    }
+  ]
+}

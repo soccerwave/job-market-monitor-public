@@ -1,0 +1,21 @@
+{
+  "version": "PUBLIC_SAFE_FREEZE_V1",
+  "checkpoint_date": "2026-09-07",
+  "status": "PUBLIC_SAFE_SYNTHETIC_REGRESSION_FROZEN",
+  "scoring_version": "SCORING_V2_WEEK2_CANDIDATE",
+  "fixture_type": "synthetic_only",
+  "private_calibration_included": false,
+  "principle": "Public repository freeze uses synthetic policy regression only. Production archives, private labels and historical calibration data remain outside the public repository.",
+  "canonical_hashing": "UTF-8 text with CRLF/CR normalized to LF before SHA-256",
+  "canonical_sha256": {
+    "scoring_v1.py": "a452ce54b7adc8fc81866bde05f88843c61711cb3bbba411e58d56f57da9559e",
+    "scoring_v2.py": "8fca465190befabb02178fec243fd41a1f883c550b1dce87c511b8351c9a96ce",
+    "jobs_v6_4_recall_guard.py": "bf94b2b0481e829e46d6472a65f9f55f4d2cf85ea42b4d292fbd101dc13a6c84",
+    "tests/test_recall_guard.py": "cc9df83a164535865383b20ed6980fa46b054d8681c4790d169d5ffc674a9f77",
+    "tests/test_scoring_v1.py": "5e25b64cf5c004807a618b99a4809b1483542a1979143bc47d2e8cd188339b58",
+    "tests/test_scoring_v2.py": "fbdebcd72e964cd1a226ddf20832879ed6bdcc3696d7d05f96df33a1fe38d33c",
+    "tests/test_operational_resilience.py": "720d092e4a990997e9316990f9821387b34527cc0437470739da5b6c083657cf",
+    "evaluation/synthetic_policy_cases.json": "ed3f2b03bd99744d3225e4027b28b111fbddc4a6f28db246a41ad95fc5d408c9",
+    "evaluation/validate_public_synthetic.py": "8e7e2186db7d30627611a2d8ec0394ee40fd19faeebe4ba6f57b43ee4df7f0a0"
+  }
+}

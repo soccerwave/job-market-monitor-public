@@ -1,0 +1,34 @@
+# Runtime/private data — never commit
+archive/
+latest/
+_state/
+runtime/
+output/
+
+# Data exports
+*.xlsx
+*.xls
+*.csv
+*.log
+*.zip
+
+# Secrets/local config
+.env
+.env.*
+*.pem
+*.key
+
+# Python/editor noise
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.vscode/
+.idea/
+
+# Vendor/checkouts
+.vendor/
+
+# Cloudflare/runtime handoff payloads
+*.jsonl
+*.ndjson
+private_payload/

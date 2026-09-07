@@ -1,0 +1,157 @@
+name: Daily Job Search
+
+on:
+  # GitHub cron is UTC. Trigger both UTC hours that may correspond to
+  # 16:17 Europe/Madrid; the Madrid guard below keeps only the correct one.
+  schedule:
+    - cron: "17 14,15 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Run mode
+        required: true
+        default: auto
+        type: choice
+        options:
+          - auto
+          - normal
+          - catchup
+          - reprocess
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-job-search
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    # Scheduled production remains inert until the repository variable
+    # PRODUCTION_ENABLED is explicitly set to "true" after state migration.
+    if: github.event_name == 'workflow_dispatch' || vars.PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TZ: Europe/Madrid
+      JOB_SEARCH_MADS_REPO: ${{ github.workspace }}/.vendor/mads
+      JOB_SEARCH_SPAIN_REPO: ${{ github.workspace }}/.vendor/spain
+      JOB_SEARCH_OUTPUT_DIR: ${{ runner.temp }}/job-search-runtime/archive
+      JOB_SEARCH_STATE_DIR: ${{ runner.temp }}/job-search-runtime/state
+      JOB_SEARCH_LATEST_DIR: ${{ runner.temp }}/job-search-runtime/latest
+      JOB_SEARCH_PUBLIC_RUNNER: "1"
+      CF_GATEWAY_URL: ${{ secrets.CF_GATEWAY_URL }}
+      CF_INGEST_TOKEN: ${{ secrets.CF_INGEST_TOKEN }}
+
+    steps:
+      - name: Madrid schedule guard
+        id: schedule_guard
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif [ "$(TZ=Europe/Madrid date +%H)" = "16" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping duplicate DST companion trigger."
+          fi
+
+      - name: Checkout public code
+        if: steps.schedule_guard.outputs.run == 'true'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        if: steps.schedule_guard.outputs.run == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Set up Bun
+        if: steps.schedule_guard.outputs.run == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+
+      - name: Validate private gateway configuration
+        if: steps.schedule_guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CF_GATEWAY_URL" || { echo "CF_GATEWAY_URL secret is missing"; exit 1; }
+          test -n "$CF_INGEST_TOKEN" || { echo "CF_INGEST_TOKEN secret is missing"; exit 1; }
+          python - <<'PY'
+          import os, urllib.request
+          base = os.environ["CF_GATEWAY_URL"].rstrip("/")
+          with urllib.request.urlopen(base + "/health", timeout=20) as r:
+              if r.status != 200:
+                  raise SystemExit("Cloudflare gateway health check failed")
+          print("Private gateway health check passed")
+          PY
+
+      - name: Public repository sanity checks
+        if: steps.schedule_guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/check_public_repo_safety.py
+          python -m unittest discover -s tests -v
+          python evaluation/validate_public_synthetic.py
+          python evaluation/check_public_freeze.py
+
+      - name: Restore private state from R2
+        if: steps.schedule_guard.outputs.run == 'true'
+        run: python scripts/cloudflare_runtime.py restore-state --state-dir "$JOB_SEARCH_STATE_DIR"
+
+      - name: Checkout LinkedIn search tools
+        if: steps.schedule_guard.outputs.run == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: MadsLorentzen/ai-job-search
+          path: .vendor/mads
+          fetch-depth: 1
+
+      - name: Checkout Spain portal tools
+        if: steps.schedule_guard.outputs.run == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: erikpr1994/ai-job-search-spain
+          path: .vendor/spain
+          fetch-depth: 1
+
+      - name: Install Spain portal CLI dependencies
+        if: steps.schedule_guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd "$JOB_SEARCH_SPAIN_REPO/.agents/skills/infojobs-search/cli" && bun install)
+          (cd "$JOB_SEARCH_SPAIN_REPO/.agents/skills/tecnoempleo-search/cli" && bun install)
+
+      - name: Run private collector
+        if: steps.schedule_guard.outputs.run == 'true'
+        env:
+          RUN_MODE: ${{ github.event.inputs.mode || 'auto' }}
+        run: python run_cloud_daily.py --mode "$RUN_MODE"
+
+      # Transaction order is deliberate: archive and Telegram delivery happen
+      # before state persistence. A delivery failure therefore cannot silently
+      # mark unseen jobs as already consumed.
+      - name: Archive private outputs to R2
+        if: steps.schedule_guard.outputs.run == 'true' && success()
+        run: python scripts/cloudflare_runtime.py upload-archive --output-dir "$JOB_SEARCH_OUTPUT_DIR" --latest-dir "$JOB_SEARCH_LATEST_DIR"
+
+      - name: Deliver primary result to Telegram
+        if: steps.schedule_guard.outputs.run == 'true' && success()
+        run: python scripts/cloudflare_runtime.py send-primary --latest-dir "$JOB_SEARCH_LATEST_DIR"
+
+      - name: Persist private state to R2
+        if: steps.schedule_guard.outputs.run == 'true' && success()
+        run: python scripts/cloudflare_runtime.py push-state --state-dir "$JOB_SEARCH_STATE_DIR" --latest-dir "$JOB_SEARCH_LATEST_DIR"
+
+      - name: Remove private runtime files
+        if: steps.schedule_guard.outputs.run == 'true' && always()
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/job-search-runtime" "$GITHUB_WORKSPACE/.vendor"
