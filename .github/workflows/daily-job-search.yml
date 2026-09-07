@@ -27,8 +27,6 @@ concurrency:
 
 jobs:
   collect:
-    # Scheduled production remains inert until the repository variable
-    # PRODUCTION_ENABLED is explicitly set to "true" after state migration.
     if: github.event_name == 'workflow_dispatch' || vars.PRODUCTION_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -87,14 +85,11 @@ jobs:
           set -euo pipefail
           test -n "$CF_GATEWAY_URL" || { echo "CF_GATEWAY_URL secret is missing"; exit 1; }
           test -n "$CF_INGEST_TOKEN" || { echo "CF_INGEST_TOKEN secret is missing"; exit 1; }
-          python - <<'PY'
-          import os, urllib.request
-          base = os.environ["CF_GATEWAY_URL"].rstrip("/")
-          with urllib.request.urlopen(base + "/health", timeout=20) as r:
-              if r.status != 200:
-                  raise SystemExit("Cloudflare gateway health check failed")
-          print("Private gateway health check passed")
-          PY
+          curl --fail --silent --show-error \
+            -A "job-market-monitor-public/1.0 (+GitHub Actions)" \
+            -H "Accept: application/json" \
+            "${CF_GATEWAY_URL%/}/health" >/dev/null
+          echo "Private gateway health check passed"
 
       - name: Public repository sanity checks
         if: steps.schedule_guard.outputs.run == 'true'
@@ -140,9 +135,6 @@ jobs:
           RUN_MODE: ${{ github.event.inputs.mode || 'auto' }}
         run: python run_cloud_daily.py --mode "$RUN_MODE"
 
-      # Transaction order is deliberate: archive and Telegram delivery happen
-      # before state persistence. A delivery failure therefore cannot silently
-      # mark unseen jobs as already consumed.
       - name: Archive private outputs to R2
         if: steps.schedule_guard.outputs.run == 'true' && success()
         run: python scripts/cloudflare_runtime.py upload-archive --output-dir "$JOB_SEARCH_OUTPUT_DIR" --latest-dir "$JOB_SEARCH_LATEST_DIR"
