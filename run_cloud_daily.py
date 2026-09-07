@@ -122,21 +122,10 @@ def main() -> int:
     last = read_last_success()
 
     if args.mode == "auto":
-        if last == today:
-            print(f"Already completed successfully for {today}; nothing to do.")
-            summary_target = LATEST_DIR / "summary.json"
-            summary_target.write_text(
-                json.dumps(
-                    {
-                        "date": today.isoformat(),
-                        "mode": "noop",
-                        "reason": "already_completed_today",
-                    },
-                    indent=2,
-                ),
-                encoding="utf-8",
-            )
-            return 0
+        # Auto mode must still perform a real collection even if another manual
+        # run already succeeded earlier on the same calendar day. seen_jobs.json
+        # handles de-duplication, so same-day runs remain safe while the scheduled
+        # 17:17 run can still discover jobs posted since the earlier run.
         if last is not None and last < today - timedelta(days=1):
             actual = "catchup"
         else:
