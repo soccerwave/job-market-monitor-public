@@ -36,9 +36,6 @@ jobs:
       TZ: Europe/Madrid
       JOB_SEARCH_MADS_REPO: ${{ github.workspace }}/.vendor/mads
       JOB_SEARCH_SPAIN_REPO: ${{ github.workspace }}/.vendor/spain
-      JOB_SEARCH_OUTPUT_DIR: ${{ runner.temp }}/job-search-runtime/archive
-      JOB_SEARCH_STATE_DIR: ${{ runner.temp }}/job-search-runtime/state
-      JOB_SEARCH_LATEST_DIR: ${{ runner.temp }}/job-search-runtime/latest
       JOB_SEARCH_PUBLIC_RUNNER: "1"
       CF_GATEWAY_URL: ${{ secrets.CF_GATEWAY_URL }}
       CF_INGEST_TOKEN: ${{ secrets.CF_INGEST_TOKEN }}
@@ -56,6 +53,14 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
             echo "Skipping duplicate DST companion trigger."
           fi
+
+      - name: Initialize private runtime paths
+        if: steps.schedule_guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          echo "JOB_SEARCH_OUTPUT_DIR=$RUNNER_TEMP/job-search-runtime/archive" >> "$GITHUB_ENV"
+          echo "JOB_SEARCH_STATE_DIR=$RUNNER_TEMP/job-search-runtime/state" >> "$GITHUB_ENV"
+          echo "JOB_SEARCH_LATEST_DIR=$RUNNER_TEMP/job-search-runtime/latest" >> "$GITHUB_ENV"
 
       - name: Checkout public code
         if: steps.schedule_guard.outputs.run == 'true'
