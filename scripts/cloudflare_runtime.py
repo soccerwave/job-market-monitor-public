@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib import error, request
 
 STATE_NAMES = ("seen_jobs.json", "last_successful_run.json")
+USER_AGENT = "job-market-monitor-public/1.0 (+GitHub Actions)"
 
 
 def gateway_config() -> tuple[str, str]:
@@ -31,7 +32,11 @@ def call_gateway(
     allow_404: bool = False,
 ) -> tuple[int, bytes]:
     base, token = gateway_config()
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json",
+    }
     if content_type:
         headers["Content-Type"] = content_type
     if extra_headers:
@@ -58,7 +63,6 @@ def restore_state(state_dir: Path) -> None:
                 target.unlink()
             print(f"Private state not present yet: {name}")
             continue
-        # Validate JSON before allowing it to influence the collector.
         try:
             json.loads(payload.decode("utf-8"))
         except Exception as exc:
