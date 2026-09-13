@@ -1,0 +1,85 @@
+name: Weekly Review Export
+
+on:
+  schedule:
+    - cron: "0 16,17 * * 0"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: Number of calendar days to include
+        required: true
+        default: "7"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-review-export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    if: github.event_name == 'workflow_dispatch' || vars.PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      TZ: Europe/Madrid
+      CF_GATEWAY_URL: ${{ secrets.CF_GATEWAY_URL }}
+      CF_INGEST_TOKEN: ${{ secrets.CF_INGEST_TOKEN }}
+
+    steps:
+      - name: Madrid Sunday 18:00 guard
+        id: schedule_guard
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif [ "$(TZ=Europe/Madrid date +%u-%H)" = "7-18" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping DST companion trigger."
+          fi
+
+      - name: Checkout public code
+        if: steps.schedule_guard.outputs.run == 'true'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        if: steps.schedule_guard.outputs.run == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Validate private gateway configuration
+        if: steps.schedule_guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CF_GATEWAY_URL" || { echo "CF_GATEWAY_URL secret is missing"; exit 1; }
+          test -n "$CF_INGEST_TOKEN" || { echo "CF_INGEST_TOKEN secret is missing"; exit 1; }
+          curl --fail --silent --show-error \
+            -A "job-market-monitor-public/1.0 (+GitHub Actions)" \
+            -H "Accept: application/json" \
+            "${CF_GATEWAY_URL%/}/health" >/dev/null
+          echo "Private gateway health check passed"
+
+      - name: Public repository sanity checks
+        if: steps.schedule_guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/check_public_repo_safety.py
+          python -m unittest discover -s tests -v
+
+      - name: Build weekly archive and deliver to Telegram
+        if: steps.schedule_guard.outputs.run == 'true'
+        env:
+          DAYS: ${{ github.event.inputs.days || '7' }}
+        run: |
+          python scripts/weekly_review_export.py \
+            --days "$DAYS" \
+            --wait-for-today-minutes 60
