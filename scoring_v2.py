@@ -6,7 +6,7 @@ from typing import Any
 
 import scoring_v1 as v1
 
-SCORING_VERSION = "SCORING_V2_WEEK2_CANDIDATE"
+SCORING_VERSION = "SCORING_V2_WEEK3_CANDIDATE"
 RETENTION_THRESHOLD = 75
 
 SCORE_BANDS = {
@@ -53,7 +53,6 @@ ROLE_TITLE_PATTERNS = [
             r"\binsights analyst\b",
             r"\bproduct performance.*\banalytics\b",
             r"\brevenue analytics\b",
-            r"\bgrowth manager\b",
         ],
     ),
     (
@@ -75,6 +74,7 @@ ROLE_TITLE_PATTERNS = [
             r"\badvanced analytics scientist\b",
             r"\bbusiness performance analyst\b",
             r"\breport analyst\b",
+            r"\breporting\b.*\banalyst\b",
             r"\bcustomer (?:strategy|experience) analyst\b",
             r"\banalista experiencia cliente\b",
             r"^\s*data analytics\s*$|\bdata analytics (?:analyst|specialist|consultant)\b",
@@ -116,6 +116,8 @@ def role_family_and_points(title: str, text: str) -> tuple[str, int]:
             r"\barchitect\b|\barquitect[oa]\b",
             r"\bfp&a\b|\bfinancial planning\b|\bcontroller\b|\bcontrolling\b",
             r"\bcloud marketplace\b|\bprocess analyst\b",
+            r"\bgrowth manager\b",
+            r"\b(?:ai|artificial intelligence|generative ai|genai) engineer\b",
         ]
     )
     if not generic_boost_blocked and re.search(
