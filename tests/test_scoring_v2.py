@@ -163,7 +163,7 @@ class ScoringV2Week2RegressionTests(unittest.TestCase):
         job = {
             "title": "Data Analyst",
             "location": "Barcelona, Spain",
-            "full_detail": "Power BI, SAP BW, SAP BusinessObjects, SQL, dashboards, data models and reconciliation for business reporting.",
+            "full_detail": "Power BI, SAP BW, SAP BusinessObjects, SQL, DAX, Excel, dashboards, data models and reconciliation for business reporting.",
         }
         result = score_job_v2(job)
         self.assertIn("specialized domain", result.penalty_reasons)
