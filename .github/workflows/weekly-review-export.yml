@@ -80,6 +80,6 @@ jobs:
         env:
           DAYS: ${{ github.event.inputs.days || '7' }}
         run: |
-          python scripts/weekly_review_export.py \
+          python -m scripts.weekly_review_export \
             --days "$DAYS" \
             --wait-for-today-minutes 60
