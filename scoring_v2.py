@@ -173,7 +173,16 @@ def geography(job: dict[str, Any], detail: str) -> tuple[str, int, bool]:
 
     # Contradictory structured location and JD workplace evidence is not a
     # blocker. Keep the job reviewable and surface the conflict explicitly.
+    explicit_catalunya_in_jd = bool(
+        re.search(
+            r"\b(?:barcelona|catalunya|catalonia)\b.{0,120}\b(?:hybrid|hibrid[oa]|presencial|onsite|location|locations?)\b|"
+            r"\b(?:hybrid|hibrid[oa]|presencial|onsite|location|locations?)\b.{0,120}\b(?:barcelona|catalunya|catalonia)\b",
+            prefix,
+        )
+    )
     if structured_catalunya and explicit_onsite_outside:
+        return "Location conflict / manual review", 10, False
+    if outside_location and explicit_catalunya_in_jd:
         return "Location conflict / manual review", 10, False
     if remote:
         return "Remote fit", 15, False
@@ -295,7 +304,15 @@ def penalties(
     if re.search(r"\bbiostimulants?\b|\bfertilizers?\b|\bagrochemicals?\b", title):
         specialized = True
     if specialized:
-        penalty -= 15
+        direct_target_family = role_family in {
+            "BI / Reporting",
+            "Data Analyst",
+            "Business Analyst",
+            "Analytics Engineer",
+            "Data Engineer",
+            "Data Scientist",
+        }
+        penalty -= 10 if direct_target_family else 15
         reasons.append("specialized domain")
 
     geography_label = geography(job, v1.clean_text(job.get("full_detail")))[0]
