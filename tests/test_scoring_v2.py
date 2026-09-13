@@ -48,14 +48,15 @@ class ScoringV2PolicyTests(unittest.TestCase):
         self.assertEqual(result.geography_fit, "Location conflict / manual review")
         self.assertNotIn("outside geography", result.penalty_reasons)
 
-    def test_growth_manager_not_assumed_people_manager_when_duties_are_analytical(self) -> None:
+    def test_growth_manager_is_not_overpromoted_as_product_analytics(self) -> None:
         job = {
             "title": "Graduate Growth Manager",
             "location": "Barcelona, Spain",
             "full_detail": "Run experiments, analyze growth metrics, build dashboards, segment users and make data-driven recommendations.",
         }
         result = score_job_v2(job)
-        self.assertNotIn("manager seniority", result.penalty_reasons)
+        self.assertNotEqual(result.role_family, "Product / Growth Analytics")
+        self.assertLess(result.role_points, 19)
         self.assertNotIn("people-management role", result.penalty_reasons)
 
     def test_real_people_manager_is_penalized(self) -> None:
@@ -137,6 +138,47 @@ class ScoringV2Week2RegressionTests(unittest.TestCase):
         result = score_job_v2(job)
         self.assertNotEqual(result.role_family, "Other Analytics")
         self.assertLess(result.role_points, 19)
+
+    def test_ai_engineer_is_not_generic_analytics_boosted(self) -> None:
+        job = {
+            "title": "Artificial Intelligence Engineer",
+            "location": "Barcelona, Spain",
+            "full_detail": "Build LLM and RAG solutions, analyze metrics, reporting, dashboards and recommendations using Python and Azure.",
+        }
+        result = score_job_v2(job)
+        self.assertNotEqual(result.role_family, "Other Analytics")
+        self.assertLess(result.role_points, 19)
+
+    def test_outside_structured_location_with_barcelona_jd_is_manual_review(self) -> None:
+        job = {
+            "title": "Business Analyst",
+            "location": "Madrid, Community of Madrid, Spain",
+            "full_detail": "Hybrid locations: Barcelona, Spain. Analyze campaign performance, KPIs, dashboards and reporting.",
+        }
+        result = score_job_v2(job)
+        self.assertEqual(result.geography_fit, "Location conflict / manual review")
+        self.assertNotIn("outside geography", result.penalty_reasons)
+
+    def test_direct_data_analyst_sap_specialization_keeps_reviewability(self) -> None:
+        job = {
+            "title": "Data Analyst",
+            "location": "Barcelona, Spain",
+            "full_detail": "Power BI, SAP BW, SAP BusinessObjects, SQL, dashboards, data models and reconciliation for business reporting.",
+        }
+        result = score_job_v2(job)
+        self.assertIn("specialized domain", result.penalty_reasons)
+        self.assertEqual(result.penalty, -10)
+        self.assertGreaterEqual(result.score, 75)
+
+    def test_reporting_automation_analyst_is_target_adjacent(self) -> None:
+        job = {
+            "title": "Junior IT Reporting & Automation Analyst",
+            "location": "Pozuelo de Alarcón, Community of Madrid, Spain",
+            "full_detail": "Location: Madrid or Barcelona, hybrid. Build Excel reports, Power BI dashboards and Power Automate workflows.",
+        }
+        result = score_job_v2(job)
+        self.assertEqual(result.role_family, "Business / Operations Analytics")
+        self.assertGreaterEqual(result.role_points, 22)
 
     def test_analytics_architect_does_not_use_generic_other_analytics_boost(self) -> None:
         job = {
