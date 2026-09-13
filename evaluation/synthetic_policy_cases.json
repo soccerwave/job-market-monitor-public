@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "description": "Synthetic, public-safe regression cases. No production jobs, companies, URLs, archives, user labels, or private state are included.",
-  "scoring_version": "SCORING_V2_WEEK2_CANDIDATE",
+  "scoring_version": "SCORING_V2_WEEK3_CANDIDATE",
   "cases": [
     {"id":"core_data_analyst","title":"Data Analyst","location":"Barcelona, Spain","full_detail":"2+ years of experience. SQL, Power BI, Python, dashboards, KPI reporting and data quality.","expected":{"score":94,"band":"HIGH","geography_fit":"Catalunya fit","penalty_reasons":[]}},
     {"id":"remote_product_analyst","title":"Product Analyst","location":"Spain","full_detail":"Fully remote in Spain. 2+ years of experience. Product analytics, SQL, Python, A/B testing, segmentation and dashboards.","expected":{"score":90,"band":"HIGH","role_family":"Product / Growth Analytics","geography_fit":"Remote fit","penalty_reasons":[]}},
