@@ -175,8 +175,9 @@ def geography(job: dict[str, Any], detail: str) -> tuple[str, int, bool]:
     # blocker. Keep the job reviewable and surface the conflict explicitly.
     explicit_catalunya_in_jd = bool(
         re.search(
-            r"\b(?:barcelona|catalunya|catalonia)\b.{0,120}\b(?:hybrid|hibrid[oa]|presencial|onsite|location|locations?)\b|"
-            r"\b(?:hybrid|hibrid[oa]|presencial|onsite|location|locations?)\b.{0,120}\b(?:barcelona|catalunya|catalonia)\b",
+            r"\b(?:location|locations|ubicacion|ubicaciones)\b.{0,80}\b(?:barcelona|catalunya|catalonia)\b|"
+            r"\b(?:barcelona|catalunya|catalonia)\b\s*,?\s*spain\b|"
+            r"\b(?:barcelona|catalunya|catalonia)\b.{0,60}\b(?:hybrid|hibrid[oa]|presencial|onsite)\b",
             prefix,
         )
     )
