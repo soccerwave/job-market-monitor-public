@@ -2,7 +2,8 @@ name: Weekly Review Export
 
 on:
   schedule:
-    - cron: "0 16,17 * * 0"
+    - cron: "0 16 * * 0"
+    - cron: "0 17 * * 0"
   workflow_dispatch:
     inputs:
       days:
@@ -35,11 +36,16 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" != "schedule" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
-          elif [ "$(TZ=Europe/Madrid date +%u-%H)" = "7-18" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
           else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping DST companion trigger."
+            madrid_offset="$(TZ=Europe/Madrid date +%z)"
+            scheduled_cron="${{ github.event.schedule }}"
+            if { [ "$scheduled_cron" = "0 16 * * 0" ] && [ "$madrid_offset" = "+0200" ]; } || \
+               { [ "$scheduled_cron" = "0 17 * * 0" ] && [ "$madrid_offset" = "+0100" ]; }; then
+              echo "run=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "Skipping DST companion trigger for offset $madrid_offset."
+            fi
           fi
 
       - name: Checkout public code
@@ -80,6 +86,22 @@ jobs:
         env:
           DAYS: ${{ github.event.inputs.days || '7' }}
         run: |
-          python -m scripts.weekly_review_export \
-            --days "$DAYS" \
-            --wait-for-today-minutes 60
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            END_DATE="$(python - <<'PY'
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+today = datetime.now(ZoneInfo("Europe/Madrid")).date()
+days_since_sunday = (today.weekday() + 1) % 7
+print((today - timedelta(days=days_since_sunday)).isoformat())
+PY
+)"
+            echo "Scheduled weekly export ending on $END_DATE"
+            python -m scripts.weekly_review_export \
+              --days "$DAYS" \
+              --end-date "$END_DATE" \
+              --wait-for-end-date-minutes 60
+          else
+            python -m scripts.weekly_review_export --days "$DAYS"
+          fi
