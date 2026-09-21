@@ -47,6 +47,24 @@ class RecallGuardTitleTests(unittest.TestCase):
         bucket, _reason = classify_title("Software Engineer")
         self.assertEqual(bucket, "AUTO_SKIP_TITLE")
 
+    def test_analytics_engineer_full_stack_is_reviewable(self) -> None:
+        bucket, reason = classify_title("Analytics Engineer II, Full Stack (Revenue Analytics)")
+        self.assertEqual(bucket, "REVIEW")
+        self.assertIn("Analytics Engineer", reason)
+
+    def test_generic_full_stack_developer_remains_auto_skip(self) -> None:
+        bucket, _reason = classify_title("Full Stack Developer")
+        self.assertEqual(bucket, "AUTO_SKIP_TITLE")
+
+    def test_data_analyst_trainer_is_auto_skip(self) -> None:
+        bucket, reason = classify_title("Formador/a Data Analyst")
+        self.assertEqual(bucket, "AUTO_SKIP_TITLE")
+        self.assertIn("Teaching", reason)
+
+    def test_plain_data_analyst_remains_high(self) -> None:
+        bucket, _reason = classify_title("Data Analyst")
+        self.assertEqual(bucket, "HIGH")
+
     def test_data_architect_with_five_years_is_low_not_auto_skip(self) -> None:
         job = {
             "title": "Data Architect",
