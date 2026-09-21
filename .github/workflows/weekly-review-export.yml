@@ -88,15 +88,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            END_DATE="$(python - <<'PY'
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-
-today = datetime.now(ZoneInfo("Europe/Madrid")).date()
-days_since_sunday = (today.weekday() + 1) % 7
-print((today - timedelta(days=days_since_sunday)).isoformat())
-PY
-)"
+            END_DATE="$(python -c 'from datetime import datetime, timedelta; from zoneinfo import ZoneInfo; today = datetime.now(ZoneInfo("Europe/Madrid")).date(); days_since_sunday = (today.weekday() + 1) % 7; print((today - timedelta(days=days_since_sunday)).isoformat())')"
             echo "Scheduled weekly export ending on $END_DATE"
             python -m scripts.weekly_review_export \
               --days "$DAYS" \
