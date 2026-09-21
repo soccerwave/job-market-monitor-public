@@ -4,7 +4,7 @@ import io
 import json
 import unittest
 import zipfile
-from datetime import datetime
+from datetime import date, datetime
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
@@ -45,6 +45,55 @@ class WeeklyReviewExportTests(unittest.TestCase):
             self.assertNotIn("2026-09-08/reprocess_primary_shortlist_full.csv", names)
             manifest_payload = json.loads(zf.read("manifest.json"))
             self.assertEqual(manifest_payload["days_requested"], 2)
+
+    def test_manual_run_after_midnight_uses_latest_completed_archive(self) -> None:
+        objects = {
+            "/v1/archive/2026-09-20/summary.json": b'{"date":"2026-09-20","mode":"normal"}',
+            "/v1/archive/2026-09-20/primary_shortlist_full.csv": b"title\nAnalyst\n",
+        }
+
+        def fake_call(method, path, **kwargs):
+            payload = objects.get(path)
+            if payload is None:
+                return 404, b'{"found":false}'
+            return 200, payload
+
+        madrid = ZoneInfo("Europe/Madrid")
+        with (
+            patch.object(weekly, "call_gateway", side_effect=fake_call),
+            patch.object(weekly, "now_madrid", return_value=datetime(2026, 9, 21, 2, 13, tzinfo=madrid)),
+            patch.object(weekly.time, "sleep") as sleep,
+        ):
+            filename, _, manifest = weekly.build_weekly_zip(days=7)
+
+        self.assertEqual(filename, "weekly_review_2026-09-14_to_2026-09-20.zip")
+        self.assertEqual(manifest["to"], "2026-09-20")
+        sleep.assert_not_called()
+
+    def test_explicit_end_date_is_required_after_wait(self) -> None:
+        objects = {
+            "/v1/archive/2026-09-20/summary.json": b'{"date":"2026-09-20","mode":"normal"}',
+        }
+
+        def fake_call(method, path, **kwargs):
+            payload = objects.get(path)
+            if payload is None:
+                return 404, b'{"found":false}'
+            return 200, payload
+
+        with (
+            patch.object(weekly, "call_gateway", side_effect=fake_call),
+            patch.object(weekly, "wait_for_archive") as wait,
+        ):
+            filename, _, manifest = weekly.build_weekly_zip(
+                days=7,
+                wait_for_end_date_minutes=60,
+                end_date=date(2026, 9, 20),
+            )
+
+        wait.assert_called_once_with("2026-09-20", 60)
+        self.assertEqual(filename, "weekly_review_2026-09-14_to_2026-09-20.zip")
+        self.assertEqual(manifest["to"], "2026-09-20")
 
     def test_send_weekly_zip_uses_private_telegram_gateway(self) -> None:
         manifest = {"from": "2026-09-07", "to": "2026-09-13", "days_requested": 7}
