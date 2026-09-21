@@ -119,7 +119,7 @@ AUTO_SKIP_TITLE_PATTERNS = [
     (r"\bservice manager\b", "Service management / IT operations role"),
     (r"\bciberseguridad\b|\bcybersecurity\b", "Cybersecurity role"),
     (r"\bdynamics 365\b", "Dynamics 365 specialist role"),
-    (r"\bdocente\b", "Teaching role"),
+    (r"\bdocente\b|\bformador(?:/a)?\b|\btrainer\b|\binstructor\b", "Teaching / training role"),
     (r"\bprogramador\b", "Programming/developer role"),
     (r"\bbig data developer\b", "Big-data developer role"),
     (r"\bstrategic purchaser\b|\bprocurement\b.*\bpurchas", "Procurement/purchasing role"),
@@ -962,6 +962,10 @@ def classify_title(title: str) -> tuple[str, str]:
         (
             r"\bsoftware engineer\b.*\bdata\b|\bdata\b.*\bsoftware engineer\b",
             "Software Engineer with explicit Data scope is target-adjacent; full JD required",
+        ),
+        (
+            r"\banalytics engineer\b.*\bfull[- ]stack\b|\bfull[- ]stack\b.*\banalytics engineer\b",
+            "Analytics Engineer with Full Stack wording is target-adjacent; full JD required",
         ),
     ]
     for pattern, reason in recall_safe_title_patterns:
