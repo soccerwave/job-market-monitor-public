@@ -6,7 +6,7 @@ import json
 import mimetypes
 import time
 import zipfile
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 from scripts.cloudflare_runtime import call_gateway
@@ -56,7 +56,7 @@ def wait_for_archive(day: str, wait_minutes: int) -> None:
         time.sleep(60)
 
 
-def latest_completed_archive_day(lookback_days: int = 14):
+def latest_completed_archive_day(lookback_days: int = 14) -> date:
     today = now_madrid().date()
     for offset in range(lookback_days + 1):
         candidate = today - timedelta(days=offset)
@@ -75,7 +75,7 @@ def latest_completed_archive_day(lookback_days: int = 14):
 def build_weekly_zip(
     days: int = 7,
     wait_for_end_date_minutes: int = 0,
-    end_date=None,
+    end_date: date | None = None,
 ) -> tuple[str, bytes, dict]:
     if days < 1:
         raise ValueError("days must be >= 1")
@@ -165,7 +165,7 @@ def main() -> int:
     parser.add_argument("--days", type=int, default=7)
     parser.add_argument(
         "--end-date",
-        type=lambda value: __import__("datetime").date.fromisoformat(value),
+        type=date.fromisoformat,
         default=None,
         help="Optional inclusive archive end date (YYYY-MM-DD).",
     )
