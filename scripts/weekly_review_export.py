@@ -41,7 +41,7 @@ def fetch_archive_object(day: str, name: str) -> bytes | None:
     return payload
 
 
-def wait_for_today(day: str, wait_minutes: int) -> None:
+def wait_for_archive(day: str, wait_minutes: int) -> None:
     if wait_minutes <= 0:
         return
     deadline = time.monotonic() + wait_minutes * 60
@@ -50,19 +50,45 @@ def wait_for_today(day: str, wait_minutes: int) -> None:
             return
         if time.monotonic() >= deadline:
             raise RuntimeError(
-                f"today's production archive is still missing after {wait_minutes} minutes: {day}"
+                f"production archive is still missing after {wait_minutes} minutes: {day}"
             )
-        print(f"Waiting for daily production archive to finish: {day}")
+        print(f"Waiting for production archive to finish: {day}")
         time.sleep(60)
 
 
-def build_weekly_zip(days: int = 7, wait_for_today_minutes: int = 0) -> tuple[str, bytes, dict]:
+def latest_completed_archive_day(lookback_days: int = 14):
+    today = now_madrid().date()
+    for offset in range(lookback_days + 1):
+        candidate = today - timedelta(days=offset)
+        if fetch_archive_object(candidate.isoformat(), "summary.json") is not None:
+            if offset:
+                print(
+                    "Current-day production archive is not available; "
+                    f"using latest completed archive: {candidate.isoformat()}"
+                )
+            return candidate
+    raise RuntimeError(
+        f"no completed production archive found in the last {lookback_days + 1} days"
+    )
+
+
+def build_weekly_zip(
+    days: int = 7,
+    wait_for_end_date_minutes: int = 0,
+    end_date=None,
+) -> tuple[str, bytes, dict]:
     if days < 1:
         raise ValueError("days must be >= 1")
 
-    end = now_madrid().date()
+    if end_date is None:
+        end = latest_completed_archive_day()
+    else:
+        end = end_date
+        wait_for_archive(end.isoformat(), wait_for_end_date_minutes)
+        if fetch_archive_object(end.isoformat(), "summary.json") is None:
+            raise RuntimeError(f"requested production archive is missing: {end.isoformat()}")
+
     start = end - timedelta(days=days - 1)
-    wait_for_today(end.isoformat(), wait_for_today_minutes)
 
     buffer = io.BytesIO()
     manifest: dict[str, object] = {
@@ -137,12 +163,24 @@ def send_weekly_zip(filename: str, payload: bytes, manifest: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build and privately deliver the weekly review archive")
     parser.add_argument("--days", type=int, default=7)
-    parser.add_argument("--wait-for-today-minutes", type=int, default=0)
+    parser.add_argument(
+        "--end-date",
+        type=lambda value: __import__("datetime").date.fromisoformat(value),
+        default=None,
+        help="Optional inclusive archive end date (YYYY-MM-DD).",
+    )
+    parser.add_argument(
+        "--wait-for-end-date-minutes",
+        type=int,
+        default=0,
+        help="Wait for the requested end-date archive before failing.",
+    )
     args = parser.parse_args()
 
     filename, payload, manifest = build_weekly_zip(
         days=args.days,
-        wait_for_today_minutes=args.wait_for_today_minutes,
+        wait_for_end_date_minutes=args.wait_for_end_date_minutes,
+        end_date=args.end_date,
     )
     send_weekly_zip(filename, payload, manifest)
     return 0
