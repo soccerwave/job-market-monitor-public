@@ -1,6 +1,6 @@
 {
-  "version": "PUBLIC_SAFE_FREEZE_V2",
-  "checkpoint_date": "2026-09-13",
+  "version": "PUBLIC_SAFE_FREEZE_V3",
+  "checkpoint_date": "2026-09-21",
   "status": "PUBLIC_SAFE_SYNTHETIC_REGRESSION_FROZEN",
   "scoring_version": "SCORING_V2_WEEK3_CANDIDATE",
   "fixture_type": "synthetic_only",
@@ -10,8 +10,8 @@
   "canonical_sha256": {
     "scoring_v1.py": "a452ce54b7adc8fc81866bde05f88843c61711cb3bbba411e58d56f57da9559e",
     "scoring_v2.py": "d740036e6406add1a5cf6aebaa8c9348247200b21c69da6e6eaff719efb7e6bb",
-    "jobs_v6_4_recall_guard.py": "bf94b2b0481e829e46d6472a65f9f55f4d2cf85ea42b4d292fbd101dc13a6c84",
-    "tests/test_recall_guard.py": "cc9df83a164535865383b20ed6980fa46b054d8681c4790d169d5ffc674a9f77",
+    "jobs_v6_4_recall_guard.py": "f99f06a6dbe78014efac7394633e2a50f3b3b5f07e253fa1fe8f178ebfa9b019",
+    "tests/test_recall_guard.py": "807396c33fb5d298cb4aceb43b3b19880ce3e6354ac7c1963da766e51cf4908b",
     "tests/test_scoring_v1.py": "5e25b64cf5c004807a618b99a4809b1483542a1979143bc47d2e8cd188339b58",
     "tests/test_scoring_v2.py": "cd502fc7dfdbe0f1fbb28780d872617f9d9f0589b76acbbc127dce39881c2d0f",
     "tests/test_operational_resilience.py": "720d092e4a990997e9316990f9821387b34527cc0437470739da5b6c083657cf",
