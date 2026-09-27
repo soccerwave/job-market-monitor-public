@@ -6,7 +6,7 @@ from typing import Any
 
 import scoring_v1 as v1
 
-SCORING_VERSION = "SCORING_V2_WEEK3_CANDIDATE"
+SCORING_VERSION = "SCORING_V2_WEEK4_CANDIDATE"
 RETENTION_THRESHOLD = 75
 
 SCORE_BANDS = {
@@ -92,13 +92,36 @@ def count(text: str, patterns: list[str]) -> int:
 
 
 def role_family_and_points(title: str, text: str) -> tuple[str, int]:
-    family, points = v1._role_family_and_points(title, text)
     t = norm(title)
     lower = norm(text)
+
+    # Week-4 production evidence: cyber/SOC roles can contain dashboards,
+    # KPIs and analytics language while still being security operations jobs.
+    if re.search(
+        r"\bsecurity operations analyst\b|\bsoc analyst\b|\bsiem\b.*\banalyst\b|"
+        r"\bthreat detection\b.*\banalyst\b|\bcybersecurity analyst\b",
+        t,
+        re.I,
+    ):
+        return "Other", 1
+
+    family, points = v1._role_family_and_points(title, text)
     if family != "Other" or points >= 20:
         return family, points
 
+    governance_rescue_blocked = bool(
+        re.search(
+            r"\bdeveloper\b|\bsoftware engineer\b|\bplatform engineer\b|"
+            r"\bapplication support\b|\bplatform support\b|\bsystems? administrator\b|"
+            r"\bplatform administrator\b",
+            t,
+            re.I,
+        )
+    )
+
     for family2, points2, patterns in ROLE_TITLE_PATTERNS:
+        if family2 == "Data Quality / Governance" and governance_rescue_blocked:
+            continue
         if any(re.search(pattern, t, re.I) for pattern in patterns):
             return family2, points2
 
@@ -118,6 +141,7 @@ def role_family_and_points(title: str, text: str) -> tuple[str, int]:
             r"\bcloud marketplace\b|\bprocess analyst\b",
             r"\bgrowth manager\b",
             r"\b(?:ai|artificial intelligence|generative ai|genai) engineer\b",
+            r"\bsecurity operations\b|\bsoc analyst\b|\bsiem\b|\bthreat detection\b|\bcybersecurity\b",
         ]
     )
     if not generic_boost_blocked and re.search(
