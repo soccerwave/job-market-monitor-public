@@ -10,6 +10,7 @@ import subprocess
 import sys
 import unicodedata
 from collections import Counter
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -594,6 +595,50 @@ def merge_values(existing: str, new: str) -> str:
     return "; ".join(values)
 
 
+TRACKING_QUERY_KEYS = {
+    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+    "trk", "trackingid", "ref", "refid", "source", "sourceid",
+}
+
+
+def canonical_url_identity(raw_url: str) -> str:
+    value = clean_text(raw_url)
+    if not value:
+        return ""
+    try:
+        parts = urlsplit(value)
+    except Exception:
+        return value
+    if not parts.scheme or not parts.netloc:
+        return value.rstrip("/")
+    kept_query = [
+        (key, val)
+        for key, val in parse_qsl(parts.query, keep_blank_values=True)
+        if key.lower() not in TRACKING_QUERY_KEYS
+    ]
+    path = parts.path.rstrip("/") or "/"
+    return urlunsplit((
+        parts.scheme.lower(),
+        parts.netloc.lower(),
+        path,
+        urlencode(kept_query, doseq=True),
+        "",
+    ))
+
+
+def canonical_url_seen_key(job: dict[str, str]) -> str:
+    url = canonical_url_identity(job.get("url", ""))
+    return f"url::{url}" if url else ""
+
+
+def seen_keys(job: dict[str, str]) -> list[str]:
+    keys = [stable_fingerprint(job)]
+    url_key = canonical_url_seen_key(job)
+    if url_key:
+        keys.append(url_key)
+    return keys
+
+
 def portal_identity(job: dict[str, str]) -> str:
     identity = job.get("id") or job.get("url")
     if identity:
@@ -912,7 +957,7 @@ def collect_freehire(catchup: bool) -> list[dict[str, str]]:
 def deduplicate(jobs: list[dict[str, str]]) -> tuple[list[dict[str, str]], int, set[str]]:
     stage1 = {}
     for job in jobs:
-        key = portal_identity(job)
+        key = canonical_url_seen_key(job) or portal_identity(job)
         if key not in stage1:
             row = dict(job)
             row["sources_seen"] = job["source"]
@@ -1796,7 +1841,7 @@ def main() -> None:
     if args.reprocess_current:
         working = list(unique_jobs)
     else:
-        working = [j for j in unique_jobs if stable_fingerprint(j) not in seen]
+        working = [j for j in unique_jobs if not any(key in seen for key in seen_keys(j))]
 
     title_skipped = [j for j in working if j["title_bucket"] == "AUTO_SKIP_TITLE"]
     detail_candidates = [j for j in working if j["title_bucket"] != "AUTO_SKIP_TITLE"]
@@ -1874,7 +1919,8 @@ def main() -> None:
     if not args.reprocess_current:
         today = local_today().isoformat()
         for j in canonical_unique_jobs:
-            seen[stable_fingerprint(j)] = today
+            for key in seen_keys(j):
+                seen[key] = today
         save_seen(seen)
 
     stamp = local_today().isoformat()
