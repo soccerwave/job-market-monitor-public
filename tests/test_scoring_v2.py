@@ -180,6 +180,37 @@ class ScoringV2Week2RegressionTests(unittest.TestCase):
         self.assertEqual(result.role_family, "Business / Operations Analytics")
         self.assertGreaterEqual(result.role_points, 22)
 
+    def test_security_operations_analyst_is_not_promoted_by_analytics_signals(self) -> None:
+        job = {
+            "title": "Security Operations Analyst (SIEM & Threat Detection)",
+            "location": "Barcelona, Spain",
+            "full_detail": "Monitor SIEM alerts, threat detection, SOC incidents, dashboards, KPIs, reporting and root-cause investigations.",
+        }
+        result = score_job_v2(job)
+        self.assertEqual(result.role_family, "Other")
+        self.assertLess(result.role_points, 10)
+        self.assertNotIn(result.band, {"HIGH", "REVIEW"})
+
+    def test_python_developer_data_governance_is_not_governance_promoted(self) -> None:
+        job = {
+            "title": "Intermediate Python Developer - Data Governance - Pharma",
+            "location": "Barcelona, Spain",
+            "full_detail": "Develop Python integrations, administer Collibra, support the data governance platform, incident management, application support and platform operations.",
+        }
+        result = score_job_v2(job)
+        self.assertNotEqual(result.role_family, "Data Quality / Governance")
+        self.assertLess(result.role_points, 22)
+
+    def test_data_governance_specialist_remains_target_family(self) -> None:
+        job = {
+            "title": "Data Governance Specialist",
+            "location": "Barcelona, Spain",
+            "full_detail": "Own data governance policies, stewardship, data quality rules, catalogues and business definitions.",
+        }
+        result = score_job_v2(job)
+        self.assertEqual(result.role_family, "Data Quality / Governance")
+        self.assertGreaterEqual(result.role_points, 22)
+
     def test_analytics_architect_does_not_use_generic_other_analytics_boost(self) -> None:
         job = {
             "title": "AWS BI & Data Analytics Architect",
