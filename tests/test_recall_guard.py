@@ -125,7 +125,7 @@ class RecallGuardTitleTests(unittest.TestCase):
                 "query_found_by": "business intelligence",
             },
         ]
-        unique, duplicates, _ = deduplicate(jobs)
+        unique, duplicates = deduplicate(jobs)
         self.assertEqual(len(unique), 1)
         self.assertEqual(duplicates, 1)
 
