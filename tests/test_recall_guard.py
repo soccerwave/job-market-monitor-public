@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import unittest
 
-from jobs_v6_4_recall_guard import classify_title, evaluate_full_jd, is_explicit_remote_spain
+from jobs_v6_4_recall_guard import (
+    canonical_url_identity,
+    classify_title,
+    deduplicate,
+    evaluate_full_jd,
+    is_explicit_remote_spain,
+    seen_keys,
+)
 
 
 class RecallGuardTitleTests(unittest.TestCase):
@@ -96,6 +103,48 @@ class RecallGuardTitleTests(unittest.TestCase):
 
     def test_work_from_anywhere_in_spain_is_remote_spain(self) -> None:
         self.assertTrue(is_explicit_remote_spain("Work from Anywhere in Spain"))
+
+    def test_same_canonical_url_deduplicates_title_company_variations(self) -> None:
+        jobs = [
+            {
+                "source": "LinkedIn",
+                "id": "a",
+                "url": "https://example.com/jobs/123?utm_source=linkedin",
+                "company": "Opera",
+                "title": "Data Analyst",
+                "location": "Barcelona",
+                "query_found_by": "data analyst",
+            },
+            {
+                "source": "LinkedIn",
+                "id": "b",
+                "url": "https://example.com/jobs/123?utm_medium=jobs",
+                "company": "Opera Software",
+                "title": "Data Analyst - BI",
+                "location": "Barcelona",
+                "query_found_by": "business intelligence",
+            },
+        ]
+        unique, duplicates, _ = deduplicate(jobs)
+        self.assertEqual(len(unique), 1)
+        self.assertEqual(duplicates, 1)
+
+    def test_canonical_url_strips_tracking_and_fragment(self) -> None:
+        raw = "https://Example.com/jobs/123/?utm_source=x&foo=1#section"
+        self.assertEqual(canonical_url_identity(raw), "https://example.com/jobs/123?foo=1")
+
+    def test_seen_keys_include_stable_url_identity(self) -> None:
+        job = {
+            "source": "LinkedIn",
+            "id": "new-id",
+            "url": "https://example.com/jobs/123?utm_campaign=test",
+            "company": "Changed Company",
+            "title": "Changed Title",
+            "location": "Barcelona",
+        }
+        keys = seen_keys(job)
+        self.assertIn("url::https://example.com/jobs/123", keys)
+        self.assertEqual(len(keys), 2)
 
 
 if __name__ == "__main__":
