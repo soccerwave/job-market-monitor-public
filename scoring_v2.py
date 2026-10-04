@@ -6,7 +6,7 @@ from typing import Any
 
 import scoring_v1 as v1
 
-SCORING_VERSION = "SCORING_V2_WEEK4_CANDIDATE"
+SCORING_VERSION = "SCORING_V2_WEEK5_CANDIDATE"
 RETENTION_THRESHOLD = 75
 
 SCORE_BANDS = {
@@ -111,8 +111,8 @@ def role_family_and_points(title: str, text: str) -> tuple[str, int]:
 
     governance_rescue_blocked = bool(
         re.search(
-            r"\bdeveloper\b|\bsoftware engineer\b|\bplatform engineer\b|"
-            r"\bapplication support\b|\bplatform support\b|\bsystems? administrator\b|"
+            r"\bdeveloper\b|\bsoftware engineer\b|\bplatform engineer\b|\bsupport engineer\b|"
+            r"\bapplication support\b|\bplatform support\b|\btechnical support\b|\bsystems? administrator\b|"
             r"\bplatform administrator\b",
             t,
             re.I,
