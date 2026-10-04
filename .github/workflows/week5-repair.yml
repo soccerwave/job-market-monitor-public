@@ -1,0 +1,163 @@
+name: Week 5 Repair
+
+on:
+  push:
+    paths:
+      - ".github/workflows/week5-repair.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Apply narrowly-scoped Week 5 repairs
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("jobs_v6_4_recall_guard.py")
+          text = path.read_text(encoding="utf-8")
+
+          old = '''def canonical_url_seen_key(job: dict[str, str]) -> str:
+              url = canonical_url_identity(job.get("url", ""))
+              return f"url::{url}" if url else ""
+
+
+          def seen_keys(job: dict[str, str]) -> list[str]:
+              keys = [stable_fingerprint(job)]
+              url_key = canonical_url_seen_key(job)
+              if url_key:
+                  keys.append(url_key)
+              return keys
+          '''
+          new = '''def canonical_url_seen_key(job: dict[str, str]) -> str:
+              url = canonical_url_identity(job.get("url", ""))
+              return f"url::{url}" if url else ""
+
+
+          def portal_id_seen_key(job: dict[str, str]) -> str:
+              source = clean_text(job.get("source", ""))
+              identifier = clean_text(job.get("id", ""))
+              if source and identifier:
+                  return f"portal::{source}::{identifier}"
+              return ""
+
+
+          def seen_keys(job: dict[str, str]) -> list[str]:
+              keys = [stable_fingerprint(job)]
+              for key in (canonical_url_seen_key(job), portal_id_seen_key(job)):
+                  if key and key not in keys:
+                      keys.append(key)
+              return keys
+          '''
+          if text.count(old) != 1:
+              raise SystemExit(f"seen_keys replacement expected 1 match, found {text.count(old)}")
+          text = text.replace(old, new, 1)
+
+          old = '''        (
+                      r"\\banalytics engineer\\b.*\\bfull[- ]stack\\b|\\bfull[- ]stack\\b.*\\banalytics engineer\\b",
+                      "Analytics Engineer with Full Stack wording is target-adjacent; full JD required",
+                  ),
+          '''
+          new = '''        (
+                      r"\\banalytics engineer\\b.*\\bfull[- ]stack\\b|\\bfull[- ]stack\\b.*\\banalytics engineer\\b",
+                      "Analytics Engineer with Full Stack wording is target-adjacent; full JD required",
+                  ),
+                  (
+                      r"\\bdata analyst\\b.*\\bfull[- ]stack\\b|\\bfull[- ]stack\\b.*\\bdata analyst\\b",
+                      "Data Analyst with Full Stack wording is target-adjacent; full JD required",
+                  ),
+          '''
+          if text.count(old) != 1:
+              raise SystemExit(f"full-stack exception replacement expected 1 match, found {text.count(old)}")
+          text = text.replace(old, new, 1)
+
+          old = '''                    seen[stable_fingerprint(job)] = local_today().isoformat()
+          '''
+          new = '''                    for key in seen_keys(job):
+                              seen[key] = local_today().isoformat()
+          '''
+          if text.count(old) != 1:
+              raise SystemExit(f"seed replacement expected 1 match, found {text.count(old)}")
+          text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding="utf-8")
+
+          test_path = Path("tests/test_recall_guard.py")
+          tests = test_path.read_text(encoding="utf-8")
+
+          old = '''    def test_generic_full_stack_developer_remains_auto_skip(self) -> None:
+                  bucket, _reason = classify_title("Full Stack Developer")
+                  self.assertEqual(bucket, "AUTO_SKIP_TITLE")
+          '''
+          new = '''    def test_data_analyst_full_stack_is_reviewable(self) -> None:
+                  bucket, reason = classify_title("Senior Full-Stack Data Analyst - Growth Analytics")
+                  self.assertEqual(bucket, "REVIEW")
+                  self.assertIn("Data Analyst", reason)
+
+              def test_generic_full_stack_developer_remains_auto_skip(self) -> None:
+                  bucket, _reason = classify_title("Full Stack Developer")
+                  self.assertEqual(bucket, "AUTO_SKIP_TITLE")
+          '''
+          if tests.count(old) != 1:
+              raise SystemExit(f"title regression insertion expected 1 match, found {tests.count(old)}")
+          tests = tests.replace(old, new, 1)
+
+          old = '''        self.assertIn("url::https://example.com/jobs/123", keys)
+                  self.assertEqual(len(keys), 2)
+          '''
+          new = '''        self.assertIn("url::https://example.com/jobs/123", keys)
+                  self.assertIn("portal::LinkedIn::new-id", keys)
+                  self.assertEqual(len(keys), 3)
+
+              def test_seen_keys_share_stable_portal_id_when_url_and_title_change(self) -> None:
+                  first = {
+                      "source": "LinkedIn",
+                      "id": "4471288995",
+                      "url": "https://example.com/jobs/old-slug-4471288995",
+                      "company": "Example Company",
+                      "title": "Original Data Analyst Title",
+                      "location": "Barcelona",
+                  }
+                  repost = {
+                      "source": "LinkedIn",
+                      "id": "4471288995",
+                      "url": "https://example.com/jobs/new-slug-4471288995",
+                      "company": "Example Company",
+                      "title": "Updated Data Analyst Title",
+                      "location": "Barcelona",
+                  }
+                  self.assertIn("portal::LinkedIn::4471288995", seen_keys(first))
+                  self.assertIn("portal::LinkedIn::4471288995", seen_keys(repost))
+          '''
+          if tests.count(old) != 1:
+              raise SystemExit(f"seen-key regression insertion expected 1 match, found {tests.count(old)}")
+          tests = tests.replace(old, new, 1)
+
+          test_path.write_text(tests, encoding="utf-8")
+          PY
+
+      - name: Run regression tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Commit repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add jobs_v6_4_recall_guard.py tests/test_recall_guard.py
+          git diff --cached --check
+          git commit -m "Repair Week 5 recall and stable-ID dedup"
+          git push
