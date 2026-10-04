@@ -88,6 +88,10 @@ jobs:
           new = '''                    for key in seen_keys(job):
                               seen[key] = local_today().isoformat()
           '''
+          # Dedent inside the generated source is intentional: YAML adds 10
+          # leading spaces to every heredoc line. The resulting Python source
+          # must have 20 spaces before the for and 24 before its body.
+          new = new.replace("                              seen[key]", "                        seen[key]")
           if text.count(old) != 1:
               raise SystemExit(f"seed replacement expected 1 match, found {text.count(old)}")
           text = text.replace(old, new, 1)
