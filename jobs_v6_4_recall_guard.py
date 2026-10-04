@@ -631,11 +631,19 @@ def canonical_url_seen_key(job: dict[str, str]) -> str:
     return f"url::{url}" if url else ""
 
 
+def portal_id_seen_key(job: dict[str, str]) -> str:
+    source = clean_text(job.get("source", ""))
+    identifier = clean_text(job.get("id", ""))
+    if source and identifier:
+        return f"portal::{source}::{identifier}"
+    return ""
+
+
 def seen_keys(job: dict[str, str]) -> list[str]:
     keys = [stable_fingerprint(job)]
-    url_key = canonical_url_seen_key(job)
-    if url_key:
-        keys.append(url_key)
+    for key in (canonical_url_seen_key(job), portal_id_seen_key(job)):
+        if key and key not in keys:
+            keys.append(key)
     return keys
 
 
@@ -1011,6 +1019,10 @@ def classify_title(title: str) -> tuple[str, str]:
         (
             r"\banalytics engineer\b.*\bfull[- ]stack\b|\bfull[- ]stack\b.*\banalytics engineer\b",
             "Analytics Engineer with Full Stack wording is target-adjacent; full JD required",
+        ),
+        (
+            r"\bdata analyst\b.*\bfull[- ]stack\b|\bfull[- ]stack\b.*\bdata analyst\b",
+            "Data Analyst with Full Stack wording is target-adjacent; full JD required",
         ),
     ]
     for pattern, reason in recall_safe_title_patterns:
@@ -1646,7 +1658,8 @@ def seed_from_previous_outputs() -> int:
                         "title": clean_text(row.get("title")),
                         "location": clean_text(row.get("location")),
                     }
-                    seen[stable_fingerprint(job)] = local_today().isoformat()
+                    for key in seen_keys(job):
+                        seen[key] = local_today().isoformat()
         except Exception as exc:
             print(f"  WARNING: could not seed from {path.name}: {exc}")
 

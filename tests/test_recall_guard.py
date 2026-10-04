@@ -59,6 +59,11 @@ class RecallGuardTitleTests(unittest.TestCase):
         self.assertEqual(bucket, "REVIEW")
         self.assertIn("Analytics Engineer", reason)
 
+    def test_data_analyst_full_stack_is_reviewable(self) -> None:
+        bucket, reason = classify_title("Senior Full-Stack Data Analyst - Growth Analytics")
+        self.assertEqual(bucket, "REVIEW")
+        self.assertIn("Data Analyst", reason)
+
     def test_generic_full_stack_developer_remains_auto_skip(self) -> None:
         bucket, _reason = classify_title("Full Stack Developer")
         self.assertEqual(bucket, "AUTO_SKIP_TITLE")
@@ -144,7 +149,28 @@ class RecallGuardTitleTests(unittest.TestCase):
         }
         keys = seen_keys(job)
         self.assertIn("url::https://example.com/jobs/123", keys)
-        self.assertEqual(len(keys), 2)
+        self.assertIn("portal::LinkedIn::new-id", keys)
+        self.assertEqual(len(keys), 3)
+
+    def test_seen_keys_share_stable_portal_id_when_url_and_title_change(self) -> None:
+        first = {
+            "source": "LinkedIn",
+            "id": "4471288995",
+            "url": "https://example.com/jobs/old-slug-4471288995",
+            "company": "Example Company",
+            "title": "Original Data Analyst Title",
+            "location": "Barcelona",
+        }
+        repost = {
+            "source": "LinkedIn",
+            "id": "4471288995",
+            "url": "https://example.com/jobs/new-slug-4471288995",
+            "company": "Example Company",
+            "title": "Updated Data Analyst Title",
+            "location": "Barcelona",
+        }
+        self.assertIn("portal::LinkedIn::4471288995", seen_keys(first))
+        self.assertIn("portal::LinkedIn::4471288995", seen_keys(repost))
 
 
 if __name__ == "__main__":
