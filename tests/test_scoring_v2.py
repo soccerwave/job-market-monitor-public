@@ -97,7 +97,6 @@ class ScoringV2PolicyTests(unittest.TestCase):
         self.assertNotIn("mandatory non-target language", result.penalty_reasons)
 
 
-
 class ScoringV2Week2RegressionTests(unittest.TestCase):
     def test_product_performance_analytics_stays_target_adjacent(self) -> None:
         job = {
@@ -201,6 +200,19 @@ class ScoringV2Week2RegressionTests(unittest.TestCase):
         self.assertNotEqual(result.role_family, "Data Quality / Governance")
         self.assertLess(result.role_points, 22)
 
+    def test_support_engineer_data_governance_is_not_governance_promoted(self) -> None:
+        job = {
+            "title": "Support Engineer - Data Governance - Pharma",
+            "location": "Barcelona, Spain",
+            "full_detail": (
+                "Support and administer a SaaS data governance platform, configure applications, "
+                "manage incidents and technical support requests, troubleshoot integrations and platform operations."
+            ),
+        }
+        result = score_job_v2(job)
+        self.assertNotEqual(result.role_family, "Data Quality / Governance")
+        self.assertLess(result.role_points, 22)
+
     def test_data_governance_specialist_remains_target_family(self) -> None:
         job = {
             "title": "Data Governance Specialist",
@@ -220,6 +232,7 @@ class ScoringV2Week2RegressionTests(unittest.TestCase):
         result = score_job_v2(job)
         self.assertNotEqual(result.role_family, "Other Analytics")
         self.assertIn("architecture specialization", result.penalty_reasons)
+
 
 if __name__ == "__main__":
     unittest.main()
