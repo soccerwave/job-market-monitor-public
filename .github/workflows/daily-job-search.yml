@@ -110,6 +110,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: ai-job-search-dev/community-portals
+          ref: b92043a9b381ada72518fe08e11fa64d315f5d06
           path: .vendor/mads
           fetch-depth: 1
 
