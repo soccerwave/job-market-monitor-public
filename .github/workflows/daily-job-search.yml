@@ -105,13 +105,22 @@ jobs:
         if: steps.schedule_guard.outputs.run == 'true'
         run: python scripts/cloudflare_runtime.py restore-state --state-dir "$JOB_SEARCH_STATE_DIR"
 
-      - name: Checkout LinkedIn search tools
+      - name: Checkout LinkedIn community portal
         if: steps.schedule_guard.outputs.run == 'true'
         uses: actions/checkout@v6
         with:
-          repository: MadsLorentzen/ai-job-search
+          repository: ai-job-search-dev/community-portals
           path: .vendor/mads
           fetch-depth: 1
+
+      - name: Prepare LinkedIn portal compatibility path
+        if: steps.schedule_guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$JOB_SEARCH_MADS_REPO/.agents/skills"
+          cp -R             "$JOB_SEARCH_MADS_REPO/portals/global/linkedin-search"             "$JOB_SEARCH_MADS_REPO/.agents/skills/linkedin-search"
+          test -f "$JOB_SEARCH_MADS_REPO/.agents/skills/linkedin-search/cli/src/cli.ts"
 
       - name: Checkout Spain portal tools
         if: steps.schedule_guard.outputs.run == 'true'
